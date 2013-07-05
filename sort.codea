@@ -1,0 +1,277 @@
+
+--# Main
+-- sort
+
+-- Use this function to perform your initial setup
+function setup()
+    fontSize(24)
+    colSpacing = 5
+    t = {}
+    IsRunning = false
+    Steps = 0
+    parameter.watch("Steps")
+    --parameter.action("Reset Step Counter", function() Steps = 0 end)
+
+    parameter.integer("Count", 5, 100, 10, newData)
+    parameter.action("Reverse", function() reverse(t) end)
+    parameter.action("Random", function() randomize(t) end)
+      
+    parameter.action("Bubble Sort", function()
+        sorter = coroutine.create(bubbleSort)
+        IsRunning = true
+    end)
+    parameter.action("Insertion Sort", function()
+        sorter = coroutine.create(insertionSort)
+        IsRunning = true
+    end)
+    parameter.action("Median Sort", function()
+        sorter = coroutine.create(medianSort)
+        IsRunning = true
+    end)
+    parameter.action("Quick Sort", function()
+        sorter = coroutine.create(quickSort)
+        IsRunning = true
+    end)
+    parameter.action("Heap Sort", function()
+        sorter = coroutine.create(heapSort)
+        IsRunning = true
+    end)
+end
+
+function newData()
+    IsRunning = false
+    t = generate(Count)
+    colWidth = (WIDTH / Count) - colSpacing
+    colHeightScalar = (HEIGHT-50) / Count
+end
+
+-- This function gets called once every frame
+function draw()
+    local isUnsorted = true
+    local activeColumn = 1
+    local i, v
+    
+    background(58, 58, 65, 255)
+    
+    if IsRunning then
+        isUnsorted, activeColumn = coroutine.resume(sorter, t)
+        Steps = Steps + 1
+        
+        if isUnsorted == false then
+            IsRunning = false
+        end
+    end
+    
+    for i,v in ipairs(t) do
+        if activeColumn == i then
+            fill(7, 255, 0, 255)
+        else
+            fill(47, 96, 31, 255)
+        end
+        
+        rect((i-1)*(colWidth+colSpacing), 50, colWidth, v*colHeightScalar)
+    end
+end
+--# DataFunctions
+function generate(size)
+    local t = {}
+    for i = 1,size do
+        t[i] = i
+    end
+      
+    return t
+end
+
+function reverse(t)
+    table.sort(t, function(a,b) return a > b end)
+end
+
+function randomize(t)
+    local size = table.getn(t)
+    local i, v, tmp, ri
+    
+    for i,v in ipairs(t) do
+        ri = math.random(1, size)
+        tmp = t[i]
+        t[i] = t[ri]
+        t[ri] = tmp
+    end
+end
+
+function tswap(t, a, b)
+    local tmp = t[a]
+    t[a] = t[b]
+    t[b] = tmp
+end
+--# BubbleSort
+function bubbleSort(t)
+    local n = table.getn(t)
+    local newn = 0
+    
+    while n > 1 do
+        newn = 0
+        for i = 1,n-1 do
+            if t[i] > t[i+1] then
+                tswap(t, i, i+1)
+                newn = i
+            end
+
+            coroutine.yield(i)
+        end
+        n = newn
+    end
+end
+--# InsertionSort
+function insertionSort(t)
+    local i, j, val
+    
+    for i = 2, table.getn(t) do
+        j = i - 1
+        val = t[i]
+        while j > 0 and t[j] > val do
+            t[j+1] = t[j]
+            j = j - 1
+            coroutine.yield(j)
+        end
+        
+        if j == i - 1 then
+            coroutine.yield(i)
+        end
+        
+        t[j+1] = val
+    end
+    
+end
+--# MedianSort
+function medianSort(t)
+    medianSort_r(t, 1, table.getn(t))
+end
+
+function medianSort_r(t, left, right)
+    local mid, mean
+    
+    if (right <= left) then return end
+    
+    mid = math.floor((right-left+1)/2)
+    mean = medianSort_selectKth(t, mid+1, left, right, 0)
+    
+    medianSort_r(t, left, left+mid-1)
+    medianSort_r(t, left+mid+1, right)
+end
+
+function medianSort_selectKth(t, k, left, right)
+    idx = math.random(left, right)
+    local pivot = medianSort_partition(t, left, right, idx)
+    
+    if left+k-1 == pivot then
+        return pivot
+    end
+    
+    if (left+k-1 < pivot) then
+        return medianSort_selectKth(t, k, left, pivot-1)
+    else
+        return medianSort_selectKth(t, k-(pivot-left+1), pivot+1, right)
+    end
+end
+
+function medianSort_partition(t, left, right, pivot)
+    local tmp, pos
+    local value = t[pivot]
+
+    tswap(t, right, pivot)
+    
+    pos = left
+    for i = left, right - 1 do
+        if t[i] <= value then
+            tswap(t, i, pos)
+            pos = pos + 1
+            coroutine.yield(pos)
+        else
+            coroutine.yield(i)
+        end
+    end
+    
+    tswap(t, right, pos)
+    
+    return pos
+end
+--# QuickSort
+function quickSort(t)
+    quickSort_real(t, 1, table.getn(t))
+end
+
+function quickSort_real(t, left, right)
+    if left >= right then return end
+    
+    local p = quickSort_partition(t, left, right)
+    
+    quickSort_real(t, left, p-1)
+    quickSort_real(t, p+1, right)
+end
+
+function quickSort_partition(t, left, right)
+    local tmp, store
+    local p = math.floor( (left+right)/2 )
+    
+    tswap(t, p, right)
+
+    store = left
+    for i = left, right-1 do
+        if t[i] <= t[right] then
+            tswap(t, i, store)
+            
+            coroutine.yield(store)
+            
+            store = store + 1
+        else
+            coroutine.yield(i)
+        end
+    end
+    
+    tswap(t, store, right)
+    
+    return store
+end
+--# HeapSort
+function heapSort(t)
+    local i;
+    
+    heapSort_buildHeap(t)
+    
+    for i = table.getn(t), 2, -1 do
+        tswap(t, 1, i)
+        heapSort_Heapify(t, 1, i);
+    end
+end
+
+function heapSort_buildHeap(t)
+    local half_n, i
+    
+    half_n = math.floor(table.getn(t) / 2);
+    for i = half_n, 1, -1 do
+        heapSort_Heapify(t, i, table.getn(t));
+    end
+end
+
+function heapSort_Heapify(t, index, max)
+    local left, right, largest
+    
+    left = 2*index
+    right = 2*index + 1
+    
+    if ( left < max and t[left] > t[index] ) then
+        largest = left
+    else
+        largest = index
+    end
+    
+    if ( right < max and t[right] > t[largest] ) then
+        largest = right
+    end
+    
+    coroutine.yield(largest)
+    if ( largest ~= index ) then
+        tswap(t, largest, index)
+        heapSort_Heapify(t, largest, max)
+    end
+end
